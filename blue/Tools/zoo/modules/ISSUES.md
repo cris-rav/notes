@@ -94,10 +94,26 @@ Legend: ✅ done · ⚠️ works but needs implementation work · 🔒 needs roo
 - [ ] Broaden watch set (binaries like `id`, `curl`; `/etc/passwd`, `/etc/os-release`) + interactive selection.
 
 ## 13 · phoenix — Firewall Tasks ⚠️🔒
-**Status:** works as an **audit** (iptables/nft/ufw state, listeners, established outbound).
+**Status:** read-only preflight (iptables/nft/ufw state, listeners, established
+connections) with live SSH port evidence from `SSH_CONNECTION` and cross-checks
+against effective sshd ports and TCP listeners. The nftables display remains
+limited to 40 lines while the complete ruleset is saved separately as rollback
+input. Backend preflight reports `BACKEND_OK=yes` only when nftables has active
+rules and IPv4/IPv6 iptables and UFW are absent or inactive/empty. It writes a
+private, sourceable host/timestamp state file with the live SSH port, backend
+decision, and nftables snapshot path. The Meow entry deploys the audit and
+dispatcher; its `plan` operation writes a review-only TCP allow-list proposal
+that always includes the live SSH port. `apply-allowlist` validates the
+reviewed plan, refreshes preflight, arms an independent timed rollback, and
+applies an inbound-only nftables chain. Rollback remains armed until the
+operator verifies a new SSH session and calls `cancel-rollback`.
 **Remaining — needs more implementation:**
-- [ ] Apply a default-deny + allow-list ruleset, always keeping the current SSH port open (no lockout).
-- [ ] Block-all-outbound with a temporary unlock/restore, and the SSH-port-fix task from the README.
+- [x] Add tests for valid, malformed, missing, and mismatched SSH-port evidence.
+- [x] Test dispatcher rejection of cross-host snapshots, denied backend state, and unknown/conflicting SSH ports; ensure plans always include the live SSH port.
+- [x] Apply an explicit reviewed default-deny inbound allow-list, always preserving the current SSH port, with independent timed rollback and operator-run new-connection verification. Mocked tests pass; live-host validation remains.
+- [ ] Block-all-outbound with timed unlock/restore and implement bounded SSH-port recovery.
+- [ ] Keep firewall changes gated on `BACKEND_OK=yes`; restore the expected SSH port to 22 and fail closed on competing or unreadable backends.
+- [ ] Coordinate any general custom SSH port support with Meow/Elephant; current host inventory has no port column.
 
 ## 14 · turtle — Deploy WAF ⚠️🔒
 **Status:** works as a **report** of the target's web footprint; `configgen.py`/`logparse.py` present.
